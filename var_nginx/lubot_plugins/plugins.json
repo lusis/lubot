@@ -1,0 +1,7 @@
+{
+  "enabled":[
+    "status",
+    "ping",
+    "image"
+  ]
+}

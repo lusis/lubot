@@ -1,0 +1,12 @@
+<h1>Plugin Status</h1>
+<label>Active plugins</label>
+<table id='active_plugins' class='display' cellspacing=0 width='75%'>
+  <thead><tr style='outline: thin solid black;'><th>name</th><th>errors</th><th>executions</th></tr></thead>
+  {% for _, v in pairs(active_plugins) do %}
+    <tr>
+      <td><b>{{v.name}}</b></td>
+      <td>{{v.errors}}</td>
+      <td>{{v.executions}}</td>
+    <tr>
+  {% end %}
+</table>

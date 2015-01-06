@@ -112,9 +112,6 @@ RUN /usr/local/bin/luarocks install luasec && \
 RUN useradd -r -d /var/nginx nginx && chown -R nginx:nginx /var/nginx/ /tmp/client_body_tmp /tmp/proxy_temp
 
 EXPOSE 3232
-EXPOSE 3131
-EXPOSE 8001
-EXPOSE 5001
 
 ADD ./supervisord.conf /supervisord.conf
 CMD /usr/bin/supervisord -c /supervisord.conf
