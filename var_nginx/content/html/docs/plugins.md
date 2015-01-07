@@ -54,7 +54,7 @@ You can use plugins with curl fairly easily:
 ## Plugin tests
 Lubot plugins have optional support for testing using a mini-test suite approach. It's a tad bit verbose but as tests actually run the plugin, it allows you to define precisely how far you want to test. Using the following tests for our sample plugin above:
 
-```
+```lua
 function plugin.test(data)
   local res = plugin.run(data)
   local expects = [=[^Hello from .*$]=]
