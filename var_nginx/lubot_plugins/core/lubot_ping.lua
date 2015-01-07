@@ -8,19 +8,22 @@ local function run(data)
   local tstamp = ngx.time()
 
   local text = "pong ("..tstamp..")"
-  return slack.to_rts_message(text, data.channel) 
+  return slack.say(text) 
 end
 
 local function test(data)
   local res = run(data)
   local expects = [=[^pong .*$]=]
-
-  if type(res) ~= 'table' then return p.fail_test("not a table") end
-  if not res.text then return p.fail_test("missing response text") end
-  local m, err = ngx.re.match(res.text, expects)
-  if not m then return p.fail_test("no "..expects.." in text") end
-  if res.channel ~= data.channel then return p.fail_test("channel mismatch") end
-  return p.pass_test({expected = expects, got = m[0]})
+  local params = {
+    mock_data = data,
+    expects = expects,
+    run_data = res
+  }
+  local t = require('utils.test').new(params)
+  t:add("responds_text")
+  t:add("response_contains")
+  t:run()
+  return t:report()
 end
 
 local plugin = {

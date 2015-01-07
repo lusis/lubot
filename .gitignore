@@ -1,2 +1,4 @@
 var_nginx/logs/*.log
 var_nginx/run/nginx.pid
+!var_nginx/lubot_plugins/user/.keep
+var_nginx/lubot_plugins/user/*

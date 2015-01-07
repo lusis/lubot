@@ -34,6 +34,10 @@ function m.to_rts_message(text, channel)
   return t
 end
 
+function m.say(text)
+  return {text = text}
+end
+
 function m.to_rich_message(...)
   local required_fields = {"text", "fields", "channel", "username"}
   local args = ...

@@ -159,6 +159,21 @@ function m.plugin_details(p)
   end
 end
 
+function m.enable_plugin(p)
+  local success, err, forcible = m.dicts.active:set(p, true)
+  if not success and err ~= "exists" then
+    return nil, "Plugin already exists"
+  elseif forcible then
+    return true, "An existing plugin was evicted to make room. This could be bad"
+  else
+    return true, nil
+  end
+end
+
+function m.disable_plugin(p)
+  m.dicts.active:delete(p)
+end
+
 function m.get_active()
   return m.dicts.active:get_keys()
 end

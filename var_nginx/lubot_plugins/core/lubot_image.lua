@@ -47,30 +47,26 @@ local function run(data)
     if not img then
       return nil, "No image found"
     end
-    resp = slack.to_rts_message(img, data.channel)
-    return resp
+    return slack.say(img)
   end
 end
 
 local function test(data)
-  local resp = {}
-  if not data.text or not data.expects then
-    return p.fail_test("missing message text or expectation")
-  end
-  local m = match(data.text)
-  if m ~= data.expects then
-    return p.fail_test("expected did not match", {expected = data.expects, match = m})
-  else
-    resp.expected = data.expects
-    resp.got = m
-    local res = run(data)
-    if not res then
-      return p.fail("pattern match test passed but plugin returned no results")
-    else
-      resp.results = res.text
-    end
-    return p.pass_test(resp)
-  end
+  local res = run(data)
+  -- response should be a url
+  local expects = [=[^http.*$]=]
+  local params = {
+    mock_data = data,
+    run_data = res
+  }
+  local t = require('utils.test').new(params)
+  -- basic tests
+  t:add("responds_text")
+  t:add("response_contains", expects)
+  t:add("parses_text", regex, 'search_string')
+  t:add("captures_value", data.expects, regex, 'search_string')
+  t:run()
+  return t:report()
 end
 
 local plugin = {

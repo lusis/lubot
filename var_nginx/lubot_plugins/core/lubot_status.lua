@@ -78,11 +78,14 @@ end
 
 local function test(data)
   local res = run(data)
-  if not res then return p.fail_test("plugin returned no data") end
-  if type(res) ~= 'table' then return p.fail_test("not a table") end
-  if not res.attachments and not res.attachments[1].fallback then return p.fail_test("rich message found but no fallback provided") end
-  if res.channel ~= data.channel then return p.fail_test("channel mismatch") end
-  return p.pass_test({results = res.attachments[1].fallback})
+  local params = {
+    mock_data = data,
+    run_data = res
+  }
+  local t = require('utils.test').new(params)
+  t:add('is_valid_rich_text')
+  t:run()
+  return t:report()
 end
 
 local plugin = {

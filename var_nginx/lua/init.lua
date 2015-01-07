@@ -13,6 +13,7 @@ shared_dict:set("bot_name", botname)
 
 local ngu = require 'utils.nginx'
 local pu = require 'utils.plugins'
+local slack = require 'utils.slack'
 
 function safe_json_decode(str)
   local cjson = require 'cjson'
@@ -114,7 +115,6 @@ function slackbot(premature)
     local botname = shared_dict:get('bot_name')
     if not slack_token then return false end
     local u = url or "https://slack.com/api/rtm.start?token="..slack_token
-    -- log(INFO, "request url: ", u)
     -- we use httpclient here because we don't have
     -- ngx.location.capture available in this context
     -- and resty-http has stupid SSL issues
@@ -158,10 +158,11 @@ function slackbot(premature)
       return false
     end
 
-    local function parse_command(cmd, msg_data, hook_url)
+    local function parse_command(cmd, msg_data)
       -- switch to the cosocket library here since we want better perf
       local data = safe_json_encode(msg_data)
       if not data then return nil end
+      local channel = msg_data.channel
       local http = require 'resty.http'
       local httpc = http.new()
       httpc:connect("127.0.0.1", 3131)
@@ -193,7 +194,9 @@ function slackbot(premature)
           end
         else
           httpc:set_keepalive()
-          return body
+          local text = decoded_body.text
+          local msg = slack.to_rts_message(text, channel)
+          return msg
         end
       end
     end
@@ -289,8 +292,13 @@ function slackbot(premature)
                 elseif response == true then
                   -- post message via webhook successfully
                 else
-                  local bytes, err = wsc:send_text(response)
-                  if err then ngu.logerr("Got an error responding: ", err) end
+                  local reply = safe_json_encode(response)
+                  if not reply then
+                    ngu.logerr("Got an error encoding json for reply")
+                  else
+                    local bytes, err = wsc:send_text(reply)
+                    if err then ngu.logerr("Got an error responding: ", err) end
+                  end
                 end
               end
             end
