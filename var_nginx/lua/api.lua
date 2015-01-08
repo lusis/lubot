@@ -1,7 +1,30 @@
 local router = require 'router'
-local inspect = require 'inspect'
+local ngu = require 'utils.nginx'
 local plugutils = require 'utils.plugins'
+local log = require 'utils.log'
+
 local r = router.new()
+
+r:post('/_private/api/plugins/find_match', function(params)
+  local data = params.data
+  local plugin = plugutils.find_plugin_for(data)
+  if not plugin then
+    plugutils.respond_as_json({count = 0})
+  else
+    local results = {}
+    for _, k in ipairs(plugin) do table.insert(results, k.id) end
+    plugutils.respond_as_json({count = #plugin, results = results})
+  end
+end)
+
+r:get('/_private/api/plugins/help/:plugin_name', function(params)
+  local plugin = plugutils.plugin_help(params.plugin_name)
+  if not plugin then
+    plugutils.respond_as_json({msg = "no help available for plugin "..params.plugin_name})
+  else
+    plugutils.respond_as_json({msg = plugin})
+  end
+end)
 
 r:post('/_private/api/plugins/run/:plugin_name', function(params)
   local data = safe_json_decode(params.data)

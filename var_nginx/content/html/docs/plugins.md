@@ -4,9 +4,9 @@ Plugins in lubot are pretty straight forward. The boilerplate required is very m
 ```lua
 local plugin = {}
 
-plugin.id = "something"       -- The name of your plugin
+plugin.id = "something"       -- The name of your plugin. Will be concatenated with `lubot_` to locate the module
 plugin.version = "0.0.1"      -- A version string - arbitrary text
-plugin.regex = [[something]]  -- The keyword that will route the message to this plugin
+plugin.regex = [[something]]  -- The keyword that will route the message to this plugin. Never use a start-of-string token here 
 
 -- internal requirements/shipped helpers. You probably want these.
 local plugins  = require 'utils.plugins'
@@ -39,7 +39,32 @@ end
 return plugin
 ```
 
-If you save the text above to `/var_nginx/lubot_plugins/user/lubot_something.lua`, the plugin is now available without restarting lubot.
+## Breakdown
+Plugin routing uses the following flow (using the above plugin as an example)
+
+- match msg text (without the botname prefix) against the regex for each active plugin (this needs instrumenting)
+- makes an internal http api request to `/_private/api/plugins/run/<plugin.id>` passing in the message data
+
+Once the api request takes over, the following happens:
+
+- concatenate the id of plugin with `lubot_` (i.e `lubot_something` using the above example)
+- safely load the plugin
+- call the `run` function on the plugin with the message data as the argument
+
+The api passes the json response back up to the websocket session. If the message was a rich text message, it's sent via webhook otherwise response is over websockets
+
+It seems complicated but the benefit here is that by internally using an HTTP api, the same flow can be used for testing entirely outside of the chat session. No need for a console plugin of any kind.
+
+In general, all you need to know is that plugins must define the following:
+
+- `id`: used to concatenate and load the module as `lubot_<id>`
+- `regex`: used to match the text addressed to the botname (excluding the botname)
+- `version`: unused for now but still required
+- a run function
+
+## Activating the plugin
+Save the above plugin as `var_nginx/lubot_plugins/user/lubot_something.lua`.
+Activate the plugin either via API (`/api/plugins/activate/<plugin_id>`) or chat (`lubot plugins activate <plugin_id>`)
 
 ## Running the plugin
 You can use plugins with curl fairly easily:
@@ -51,8 +76,9 @@ You can use plugins with curl fairly easily:
 }
 ```
 
+
 ## Plugin tests
-Lubot plugins have optional support for testing using a mini-test suite approach. It's a tad bit verbose but as tests actually run the plugin, it allows you to define precisely how far you want to test. Using the following tests for our sample plugin above:
+Lubot plugins have optional support for testing using a mini-test suite approach. It's a tad bit verbose but as this test actually runs the plugin, it allows you to define precisely how far you want to test. Using the following tests for our sample plugin above:
 
 ```lua
 function plugin.test(data)

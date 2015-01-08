@@ -34,8 +34,8 @@ function m.to_rts_message(text, channel)
   return t
 end
 
-function m.say(text)
-  return {text = text}
+function m.say(...)
+  return {text = table.concat({...}," ")}
 end
 
 function m.to_rich_message(...)

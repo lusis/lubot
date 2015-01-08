@@ -14,12 +14,15 @@ shared_dict:set("bot_name", botname)
 local ngu = require 'utils.nginx'
 local pu = require 'utils.plugins'
 local slack = require 'utils.slack'
+local log = require 'utils.log'
+
+local inspect = require 'inspect'
 
 function safe_json_decode(str)
   local cjson = require 'cjson'
   local ok, data = pcall(cjson.decode, str)
   if not ok then
-    ngu.logerr("unable to decode json: ", err)
+    log.err("unable to decode json: ", err)
     return nil
   else
     return data
@@ -30,7 +33,7 @@ function safe_json_encode(t)
   local cjson = require 'cjson'
   local ok, data = pcall(cjson.encode, t)
   if not ok then
-    ngu.logerr("unable to decode json: ", data)
+    log.err("unable to decode json: ", data)
     return nil
   else
     return data
@@ -53,13 +56,13 @@ function slackbot(premature)
     local slack_ims       = ngx.shared.slack_ims
     local slack_bots      = ngx.shared.slack_bots
     
-    ngu.loginfo("Filling shared dict with initial details")
+    log.alert("Filling shared dict with initial details")
     for k, v in pairs(data.users) do
       local str = safe_json_encode(v)
       if not str then break end
       local o, e = slack_users:safe_set(v.id, str)
       if not o then
-        ngu.logerr("Unable to add user to shared_dict: ", e)
+        log.err("Unable to add user to shared_dict: ", e)
         errors.insert(v)
       end
     end
@@ -68,7 +71,7 @@ function slackbot(premature)
       if not str then break end
       local o, e = slack_groups:safe_set(v.id, str)
       if not o then
-        ngu.logerr("Unable to add group to shared_dict: ", e)
+        log.err("Unable to add group to shared_dict: ", e)
         errors.insert(v)
       end
     end
@@ -77,7 +80,7 @@ function slackbot(premature)
       if not str then break end
       local o, e = slack_channels:safe_set(v.id, str)
       if not o then
-        ngu.logerr("Unable to add channel to shared_dict: ", e)
+        log.err("Unable to add channel to shared_dict: ", e)
         errors.insert(v)
       end
     end
@@ -86,7 +89,7 @@ function slackbot(premature)
       if not str then break end
       local o, e = slack_bots:safe_set(v.id, str)
       if not o then
-        ngu.logerr("Unable to add bots to shared_dict: ", e)
+        log.err("Unable to add bots to shared_dict: ", e)
         errors.insert(v)
       end
     end
@@ -95,11 +98,11 @@ function slackbot(premature)
       if not str then break end
       local o, e = slack_ims:safe_set(v.id, str)
       if not o then
-        ngu.logerr("Unable to add ims to shared_dict: ", e)
+        log.err("Unable to add ims to shared_dict: ", e)
         errors.insert(v)
       end
     end
-    ngu.loginfo("Filled shared dict")
+    log.alert("Filled shared dict")
     if #errors > 0 then
       return false, errors
     else
@@ -110,7 +113,7 @@ function slackbot(premature)
   local function wait(url)
     local plugin_config = pu.load_config()
     local slack_webhook_url = shared_dict:get('slack_webhook_url')
-    if not slack_webhook_url then ngu.loginfo("No webhook url. Some plugins may not work") end
+    if not slack_webhook_url then log.alert("No webhook url. Some plugins may not work") end
     local slack_token = shared_dict:get('slack_token')
     local botname = shared_dict:get('bot_name')
     if not slack_token then return false end
@@ -127,13 +130,13 @@ function slackbot(premature)
     }
     local res = hc:get(u,{ headers = reqheaders})
     if res.err then
-      ngu.logerr('failed to connect to slack: '..err)
+      log.err('failed to connect to slack: '..err)
       return false
     end
     local data
     local body = res.body
     if not body then
-      ngu.logerr("Missing body", res.status)
+      log.err("Missing body", res.status)
       return false
     else
       data = safe_json_decode(body)
@@ -143,7 +146,7 @@ function slackbot(premature)
     -- local pok, perr = ngx.timer.at(0, fill_slack_dicts, data)
     local pok, perr = fill_slack_dicts(data)
     if not pok then
-      ngu.logerr("Failed to schedule filling of shared dicts with slack data: ", inspect(perr))
+      log.err("Failed to schedule filling of shared dicts with slack data: ", inspect(perr))
     end
 
     local rewrite_url_t = hc:urlparse(data.url)
@@ -154,7 +157,7 @@ function slackbot(premature)
     local wsc, wscerr = ws:new()
     local ok, connerr = wsc:connect(proxy_url)
     if not ok then
-      ngu.logerr("[failed to connect] ", connerr)
+      log.err("[failed to connect] ", connerr)
       return false
     end
 
@@ -173,7 +176,7 @@ function slackbot(premature)
         body = data
       }
       if err or res.status == 405 then
-        ngu.logerr("error running plugin: ", res.status)
+        log.err("error running plugin: ", res.status)
         return nil
       else
         local body = res:read_body()
@@ -187,7 +190,7 @@ function slackbot(premature)
           httpc:set_keepalive()
           if not res or res.status ~= 200 then
             -- chat message failed
-            ngu.logerr("Unable to rich message to slack api: "..err)
+            log.err("Unable to rich message to slack api: "..err)
             return nil
           else
             return true
@@ -208,7 +211,7 @@ function slackbot(premature)
     local bots       = ngx.shared.slack_bots
     local function get_source(c)
       local m, err = ngx.re.match(c, "^([A-Z]).*", "jo")
-      if not m then ngu.logerr("Error attempting match: ", err); return c end
+      if not m then log.err("Error attempting match: ", err); return c end
       --log(INFO, "Matched ", c, " as type ", m[1])
       if m[1] == 'D' then return safe_json_decode(ims:get(c)) end
       if m[1] == 'C' then return safe_json_decode(channels:get(c)) end
@@ -219,22 +222,22 @@ function slackbot(premature)
     while true do
       local data, typ, err = wsc:recv_frame()
       if wsc.fatal then
-        ngu.logerr("[failed to recieve the frame] ", err)
+        log.err("[failed to recieve the frame] ", err)
         break
       end
       if not data then
-        ngu.loginfo("[sending wss ping] ", typ)
+        log.alert("[sending wss ping] ", typ)
         local bytes, err = wsc:send_ping()
         if not bytes then
-          ngu.logerr("[failed to send wss ping] ", err)
+          log.err("[failed to send wss ping] ", err)
           break
         end
       elseif typ == "close" then break
       elseif typ == "ping" then
-        ngu.loginfo("[wss ping] ", typ, " ("..data..")")
+        log.alert("[wss ping] ", typ, " ("..data..")")
         local bytes, err = wsc:send_pong()
         if not bytes then
-          ngu.logerr("[failed to send wss pong] ", err)
+          log.err("[failed to send wss pong] ", err)
           break
         end
       elseif typ == "text" then
@@ -261,17 +264,17 @@ function slackbot(premature)
             else
               user = u.name
             end
-            local m, err = ngx.re.match(res.text, "^"..botname.." (\\w+).*", "jo")
+            local m, err = ngx.re.match(res.text, "^"..botname.." (.*)$", "jo")
             if not m then
               -- we don't care if it's not directed at us
             else
               local command = m[1]
               if not command then
-                ngu.loginfo("No command found")
+                log.warn("No command found")
               else
                 if command == "die" then
                   if not u.is_admin then
-                    ngu.loginfo("Ignoring non-admin user")
+                    log.alert("Ignoring non-admin user")
                   else
                     local m = {
                       ["type"] = "message",
@@ -281,36 +284,43 @@ function slackbot(premature)
                     }
                     local bytes, err = wsc:send_text(safe_json_encode(m))
                     if err then
-                      ngu.logerr("Got an error sending die response: ", err)
+                      log.err("Got an error sending die response: ", err)
                     end
                     break
                   end
                 end
-                local response = parse_command(command, res)
-                if not response then 
-                  ngu.logwarn("empty response")
-                elseif response == true then
-                  -- post message via webhook successfully
-                else
-                  local reply = safe_json_encode(response)
-                  if not reply then
-                    ngu.logerr("Got an error encoding json for reply")
+                local candidates = pu.find_plugin_for(command)
+                if #candidates == 1 then
+                  local response = parse_command(candidates[1].id, res)
+                  if not response then 
+                    log.warn("empty response")
+                  elseif response == true then
+                    -- post message via webhook successfully
                   else
-                    local bytes, err = wsc:send_text(reply)
-                    if err then ngu.logerr("Got an error responding: ", err) end
+                    local reply = safe_json_encode(response)
+                    if not reply then
+                      log.err("Got an error encoding json for reply")
+                    else
+                      local bytes, err = wsc:send_text(reply)
+                      if err then log.err("Got an error responding: ", err) end
+                    end
                   end
+                elseif #candidates > 1 then
+                  log.alert("Multiple candidates for command. This should never happen")
+                else
+                  -- do nothing
                 end
               end
             end
           elseif res['type'] == 'hello' then
-            ngu.loginfo("Connected!")
+            log.notice("Connected!")
           elseif res['type'] == 'group_joined' then
             -- handle getting add to a new group
             local groups = ngx.shared.slack_groups
             local data = safe_json_encode(res.channel)
             local o, e = groups:safe_set(res.channel.id, data)
             if e then
-              ngu.logerr("Unable to add new group to shared_dict: ", e)
+              log.warn("Unable to add new group to shared_dict: ", e)
             end
           elseif res['type'] == 'user_typing' then
             -- skip it
@@ -323,14 +333,14 @@ function slackbot(premature)
           elseif res['type'] == 'file_shared' then
             -- skip it
           else
-            ngu.loginfo("[unknown type] ", data)
+            log.notice("[unknown type] ", data)
           end
         else
-          ngu.logerr("Error decoding json: ", inspect(data))
+          log.err("Error decoding json: ", inspect(data))
         end
       end
     end
-    ngu.loginfo("WSS Loop broke out")
+    log.notice("WSS Loop broke out")
     return false
   end
 
@@ -344,16 +354,16 @@ function slackbot(premature)
   if asking_worker_pid ~= working_worker_pid then
     return false
   else
-    ngu.loginfo("I am the current holder. Continuing")
+    log.alert("I am the current holder. Continuing")
     -- keys
     local slack_token = shared_dict:get('slack_token')
     -- third party
     local wok, res = pcall(wait)
     local werr = wok or res
     if not wok or res == false then
-      ngu.logerr("Res loop exited: ", werr)
+      log.err("Res loop exited: ", werr)
     else
-      ngu.logerr("You...shouldn't get here but I'm playing it safe")
+      log.alert("You...shouldn't get here but I'm playing it safe")
     end
     return res
   end

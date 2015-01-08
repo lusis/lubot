@@ -1,4 +1,6 @@
 local ngu = require 'utils.nginx'
+local log = require 'utils.log'
+
 local m = {}
 
 m.dicts = {
@@ -8,6 +10,35 @@ m.dicts = {
   errors = ngx.shared.plugin_errors,
   executions = ngx.shared.plugin_executions
 }
+
+function m.plugin_active(p)
+  local d = m.dicts.active:get_keys()
+  if not d[p] then
+    return false
+  else
+    return true
+  end
+end
+
+function m.find_plugin_for(text)
+  local matches = {}
+  local active_plugins = m.dicts.active:get_keys()
+  if not active_plugins then
+    return nil
+  else
+    for _, k in ipairs(active_plugins) do
+      local plugin = m.safe_plugin_load(k)
+      if plugin then
+        local m, err = ngx.re.match(text, "^"..plugin.regex, 'jo')
+        if m then
+          -- return the plugin function itself to save another safeload call
+          table.insert(matches, plugin)
+        end
+      end
+    end
+  end
+  return matches
+end
 
 function m.generate_id()
   local worker_id = ngx.worker.pid()
@@ -47,9 +78,9 @@ function m.plugin_error(p, msg)
   local plugin_errors = m.dicts.errors
   local success = m.safe_incr(plugin_errors, p)
   if not success then
-    ngu.logwarn("Unable to increment counter")
+    log.warn("Unable to increment counter")
   end
-  ngu.logerr("Plugin errored with message: ", msg)
+  log.err("Plugin errored with message: ", msg)
   ngx.status = ngx.HTTP_NOT_ALLOWED
   ngx.header.content_type = "application/json"
   ngx.say(safe_json_encode({err = true, msg = msg}))
@@ -81,11 +112,11 @@ end
 function m.safe_plugin_load(p)
   local plugin_ok, plugin = pcall(require, "lubot_"..p)
   if not plugin_ok then
-    ngu.logerr("Unable to load the plugin: ", p)
+    log.err("Unable to load the plugin: ", p)
     return nil
   else
     if not plugin.id or not plugin.version or not plugin.regex then
-      ngu.logerr("Plugin missing required metadata (id, version or regex): ", plugin.id)
+      log.err("Plugin missing required metadata (id, version or regex): ", plugin.id)
       return nil
     else
       return plugin
@@ -100,7 +131,7 @@ function m.safe_plugin_run(p, d)
   if not run_ok then return m.plugin_error(p, "Plugin did not run safely: "..res) end
   if err then return m.plugin_error(p, "Plugin returned an error: "..err) end
   local incr_exec = m.safe_incr(m.dicts.executions, p)
-  if not incr_exec then ngu.logwarn("Unable to increment execution counter for "..p) end
+  if not incr_exec then log.warn("Unable to increment execution counter for "..p) end
   return res
 end
 
@@ -111,11 +142,38 @@ function m.respond_as_json(t)
   ngx.exit(ngx.HTTP_OK)
 end
 
-function m.plugin_test(p, d)
+function m.plugin_help(p)
+  local plugin = m.safe_plugin_load(p)
+  if not plugin.help then
+    local resp = [[Plugin has no help. Displaying regex used instead.
+    regex:  `^]]..plugin.regex.."`"
+    log.warn("plugin ", plugin.id, " has no help output")
+    return resp
+  else
+    local help_ok, help = pcall(plugin.help)
+    if not help_ok then
+      m.plugin_error(plugin.id, " help errored: ", help)
+    else
+      return help
+    end
+  end
+end
+
+function m.plugin_test(p, body)
+  local d = body or {}
   local plugin = m.safe_plugin_load(p)
   if not plugin.test then
     m.plugin_error(plugin.id, "No test defined for plugin "..plugin.id)
   else
+    local str = d.text
+    if str then
+      local regex = [=[(^]=]..m.get_botname()..[=[)\s+(?<remainder>.*$)]=]
+      local b, e = ngx.re.match(d.text, regex, 'jo')
+      if b and b.remainder then
+        str = b.remainder
+      end
+      d.text = str
+    end
     local test_ok, test = pcall(plugin.test, d)
     if not test_ok then
       return m.fail_test("Test failed to run: "..test)
@@ -181,18 +239,18 @@ end
 function m.load_config()
   local inspect = require 'inspect'
 
-  local defaults = '{"enabled":["status","ping","image"]}'
+  local defaults = '{"enabled":["status","ping","image","plugins","help"]}'
   local lubot_config = ngx.shared.lubot_config
   local plugin_config_file = lubot_config:get("config_file")
   local config
   if not plugin_config_file then
-    ngu.logerr("Missing config file, loading defaults")
+    log.err("Missing config file, loading defaults")
     config = safe_json_decode(defaults)
   else
-    ngu.loginfo("Loading config from ", plugin_config_file)
+    log.alert("Loading config from ", plugin_config_file)
     local file = io.open(plugin_config_file)
     if not file then
-      ngu.logerr("Unable to read file. Loading defaults")
+      log.err("Unable to read file. Loading defaults")
       config = safe_json_decode(defaults)
     else
       local content = file:read("*a")
@@ -201,12 +259,12 @@ function m.load_config()
     end
   end
   for idx, plugin in pairs(config.enabled) do
-    ngu.loginfo("Enabling plugin: ", plugin)
+    log.alert("Enabling plugin: ", plugin)
     m.dicts.active:set(plugin, true)
     if config[plugin] then
       local plugin_settings = safe_json_encode(config[plugin])
       m.dicts.config:set(plugin, plugin_settings)
-      ngu.loginfo("Loading ", plugin, " settings from config: ", inspect(config[plugin]))
+      log.alert("Loading ", plugin, " settings from config: ", inspect(config[plugin]))
     end
   end
   return config

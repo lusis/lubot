@@ -131,7 +131,8 @@ function _M:add(func, ...)
   end
 end
 
-function _M:run()
+function _M:run(...)
+  local args = ...
   if not self.tests then
     self:pass("No tests to run")
   else

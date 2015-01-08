@@ -1,8 +1,10 @@
 local id = "image"
 local version = "0.0.1"
-local regex = [=[^\w+ (image|img)( me)? (?<search_string>.*)$]=]
+local regex = [=[(image|img)( me)? (?<search_string>.*)$]=]
+
 local p = require 'utils.plugins'
 local slack = require 'utils.slack'
+local ngu = require 'utils.nginx'
 
 local function query_google(str)
   local gurl = "http://ajax.googleapis.com/ajax/services/search/images"
@@ -35,7 +37,6 @@ local function match(str)
 end
 
 local function run(data)
-
   if not data.text then
     return nil, "Missing message text"
   end
