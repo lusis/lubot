@@ -5,6 +5,7 @@ local regex = [=[(image|img)( me)? (?<search_string>.*)$]=]
 local p = require 'utils.plugins'
 local slack = require 'utils.slack'
 local ngu = require 'utils.nginx'
+local log = require 'utils.log'
 
 local function query_google(str)
   local gurl = "http://ajax.googleapis.com/ajax/services/search/images"
@@ -20,16 +21,18 @@ local function query_google(str)
   if res.err then
     return nil
   else
-    math.randomseed(ngx.time())
-    local b = cjson.decode(res.body)
+
+    local b = safe_json_decode(res.body)
+    if not b then return nil end
     local candidates = b.responseData.results
-    return candidates[math.random(#candidates)].unescapedUrl
+    return p.pick_random(candidates).unescapedUrl
   end
 end
 
 local function match(str)
   local m, err = ngx.re.match(str, regex, 'jo')
   if not m then
+    log.err(err or "No match for "..str)
     return nil
   else
     return m['search_string']
@@ -42,10 +45,12 @@ local function run(data)
   end
   local m = match(data.text)
   if not m then
+    log.err("Missing string to search for")
     return nil, "Missing string to search for"
   else
     local img = query_google(m)
     if not img then
+      log.err("No image found")
       return nil, "No image found"
     end
     return slack.say(img)

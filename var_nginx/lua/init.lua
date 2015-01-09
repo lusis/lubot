@@ -19,10 +19,15 @@ local log = require 'utils.log'
 local inspect = require 'inspect'
 
 function safe_json_decode(str)
+  if not str then
+    log.err("no string passed in for decoding")
+    return nil
+  end
+  local caller = debug.getinfo(2).name
   local cjson = require 'cjson'
   local ok, data = pcall(cjson.decode, str)
   if not ok then
-    log.err("unable to decode json: ", err)
+    log.err("unable to decode json from "..caller..": ", data)
     return nil
   else
     return data
@@ -33,7 +38,7 @@ function safe_json_encode(t)
   local cjson = require 'cjson'
   local ok, data = pcall(cjson.encode, t)
   if not ok then
-    log.err("unable to decode json: ", data)
+    log.err("unable to encode json: ", data)
     return nil
   else
     return data
@@ -168,28 +173,44 @@ function slackbot(premature)
       local channel = msg_data.channel
       local http = require 'resty.http'
       local httpc = http.new()
-      httpc:connect("127.0.0.1", 3131)
+      httpc:connect("unix:/var/nginx/tmp/ngx.private.sock")
+      httpc:set_timeout(5000)
       local res, err = httpc:request{
         method = "POST",
-        --path = "/_plugin?plugin="..cmd,
         path = "/_private/api/plugins/run/"..cmd,
+        headers = {["Host"] = "localhost", ["Content-Type"] = "application/json"},
         body = data
       }
+      if not res then
+        log.err("Got no response from request. That's bad")
+        httpc:set_keepalive()
+        return nil
+      end
+      httpc:set_keepalive()
       if err or res.status == 405 then
         log.err("error running plugin: ", res.status)
+        httpc:set_keepalive()
         return nil
       else
         local body = res:read_body()
         local decoded_body = safe_json_decode(body)
+        if not decoded_body then
+          log.alert([[plugin response does not appear to be json]])
+          httpc:set_keepalive()
+          return nil
+        end
         if decoded_body.attachments then
+          httpc:set_timeout(10000)
           local res, err = httpc:request{
             method = "POST",
             path = "/_private/slackpost",
+            headers = {["Host"] = "localhost", ["Content-Type"] = "application/json"},
             body = body
           }
           httpc:set_keepalive()
           if not res or res.status ~= 200 then
             -- chat message failed
+            httpc:set_keepalive()
             log.err("Unable to rich message to slack api: "..err)
             return nil
           else
@@ -313,7 +334,7 @@ function slackbot(premature)
               end
             end
           elseif res['type'] == 'hello' then
-            log.notice("Connected!")
+            log.alert("Connected!")
           elseif res['type'] == 'group_joined' then
             -- handle getting add to a new group
             local groups = ngx.shared.slack_groups

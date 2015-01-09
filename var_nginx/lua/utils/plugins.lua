@@ -138,8 +138,12 @@ end
 function m.respond_as_json(t)
   ngx.header.content_type = "application/json"
   local response = safe_json_encode(t)
-  ngx.say(response)
-  ngx.exit(ngx.HTTP_OK)
+  if not response then
+    log.alert("JSON encode failed: ", response)
+  else
+    ngx.say(response)
+    ngx.exit(ngx.HTTP_OK)
+  end
 end
 
 function m.plugin_help(p)
@@ -270,4 +274,13 @@ function m.load_config()
   return config
 end
 
+function m.pick_random(t)
+  math.randomseed(ngx.time())
+  local candidates = t
+  return candidates[math.random(#candidates)]
+end
+
+function m.match(...)
+  local s, err = ngx.re.match(unpack({...}), 'jo')
+end
 return m

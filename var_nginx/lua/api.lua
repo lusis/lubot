@@ -27,13 +27,19 @@ r:get('/_private/api/plugins/help/:plugin_name', function(params)
 end)
 
 r:post('/_private/api/plugins/run/:plugin_name', function(params)
-  local data = safe_json_decode(params.data)
+  local data
+  if params.data then
+    data = safe_json_decode(params.data)
+  end
   local plugin = plugutils.safe_plugin_run(params.plugin_name, data)
   plugutils.respond_as_json(plugin)
 end)
 
 r:post('/_private/api/plugins/test/:plugin_name', function(params)
-  local data = safe_json_decode(params.data)
+  local data
+  if params.data then
+    data = safe_json_decode(params.data)
+  end
   local plugin = plugutils.plugin_test(params.plugin_name, data)
   plugutils.respond_as_json(plugin)
 end)
@@ -66,7 +72,7 @@ ngx.req.read_body()
 if method == "post" or method == "put" then
   local q, err = ngx.req.get_body_data()
   if not q then
-    -- no params
+    log.warn("POST/PUT with no body data") 
   else
     query_params.data = q
   end

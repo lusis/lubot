@@ -42,7 +42,9 @@ At this point you should see your bot visible in slack. Three basic example plug
 
 - `ping`: Works similar to hubot's ping
 - `status`: Returns some basic stats about the bot and slack account being used
-- `image me`: Basic version of the hubot image me plugin
+- `image`: Basic version of the hubot `image me` plugin
+- `help`: Help support for plugins
+- `plugins`: Plugin management itself is a plugin
 
 There is also a [webui](/docs/webui) available with some basic functionality and also an [api](/docs/api) that you can hit with curl.
 

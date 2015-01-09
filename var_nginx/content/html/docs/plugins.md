@@ -17,6 +17,11 @@ function plugin.run(data)
   return slack.say(text)
 end
 
+function plugin.help()
+  local h = [[This plugin says things]]
+  return h
+end
+
 -- optional test support
 function plugin.test(data)
   local res = plugin.run(data)
@@ -43,7 +48,7 @@ return plugin
 Plugin routing uses the following flow (using the above plugin as an example)
 
 - match msg text (without the botname prefix) against the regex for each active plugin (this needs instrumenting)
-- makes an internal http api request to `/_private/api/plugins/run/<plugin.id>` passing in the message data
+- makes an internal http api request (over unix domain socket) to `/_private/api/plugins/run/<plugin.id>` passing in the message data
 
 Once the api request takes over, the following happens:
 
