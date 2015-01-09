@@ -48,6 +48,9 @@ At this point you should see your bot visible in slack. Three basic example plug
 
 There is also a [webui](/docs/webui) available with some basic functionality and also an [api](/docs/api) that you can hit with curl.
 
+## Nginx and Websocket internals
+See [workflow](/docs/websocket-workflow)
+
 ## Customizing
 See [customization](/docs/customizing)
 
