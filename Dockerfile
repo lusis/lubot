@@ -103,11 +103,12 @@ RUN curl -s http://luarocks.org/releases/luarocks-2.2.0.tar.gz | tar xvz -C /tmp
  && rm -rf /tmp/luarocks-*
 
 RUN /usr/local/bin/luarocks install luasec && \
-  /usr/local/bin/luarocks install lua-resty-template && \
+ /usr/local/bin/luarocks install lua-resty-template && \
  /usr/local/bin/luarocks install httpclient && \
  /usr/local/bin/luarocks install lua-resty-http && \
  /usr/local/bin/luarocks install inspect && \
- /usr/local/bin/luarocks install lua-resty-hoedown
+ /usr/local/bin/luarocks install lua-resty-hoedown && \
+ /usr/local/bin/luarocks install xml
 
 RUN useradd -r -d /var/nginx nginx && chown -R nginx:nginx /var/nginx/ /tmp/client_body_tmp /tmp/proxy_temp
 
