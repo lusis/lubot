@@ -1,3 +1,4 @@
+local _VERSION = "0.0.1"
 local ngu = require 'utils.nginx'
 
 -- shared dicts

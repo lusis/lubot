@@ -1,3 +1,4 @@
+local _VERSION = "0.0.1"
 local router = require 'router'
 local ngu = require 'utils.nginx'
 local plugutils = require 'utils.plugins'
@@ -20,7 +21,9 @@ end)
 r:get('/_private/api/plugins/help/:plugin_name', function(params)
   local plugin = plugutils.plugin_help(params.plugin_name)
   if not plugin then
-    plugutils.respond_as_json({msg = "no help available for plugin "..params.plugin_name})
+    plugutils.respond_as_json({
+      msg = "no help available for plugin "..params.plugin_name
+    })
   else
     plugutils.respond_as_json({msg = plugin})
   end

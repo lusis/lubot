@@ -1,4 +1,5 @@
 local m = {}
+m._VERSION = "0.0.1"
 local n = require 'utils.nginx'
 
 function m.err(...)

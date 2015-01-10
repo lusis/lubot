@@ -1,4 +1,5 @@
 local m = {}
+m._VERSION = "0.0.1"
 
 function m.logerr(...)
   local caller = debug.getinfo(2).name

@@ -1,3 +1,4 @@
+local _VERSION = "0.0.1"
 -- lua-httpclient ships with a better url/uri parser
 local neturl = require 'httpclient.neturl'
 

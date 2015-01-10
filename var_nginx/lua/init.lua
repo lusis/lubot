@@ -1,3 +1,4 @@
+local _VERSION = "0.0.1"
 -- These variables are all local to this file
 local lubot_plugin_config = os.getenv("LUBOT_PLUGIN_CONFIG") or "/var/nginx/lubot_plugins/plugins.json"
 local botname = os.getenv("LUBOT_BOTNAME") or "lubot"

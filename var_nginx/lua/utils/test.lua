@@ -1,6 +1,8 @@
 local m = {}
 local _M = {}
 
+m._VERSION = "0.0.1"
+
 function m.new(...)
   local self = {}
   local args = ... or {}

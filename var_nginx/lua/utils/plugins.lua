@@ -2,6 +2,7 @@ local ngu = require 'utils.nginx'
 local log = require 'utils.log'
 
 local m = {}
+m._VERSION = "0.0.1"
 
 m.dicts = {
   active = ngx.shared.plugin_active,

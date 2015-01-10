@@ -1,6 +1,7 @@
 local ngu = require 'utils.nginx'
 local pu = require 'utils.plugins'
 local m = {}
+m._VERSION = "0.0.1"
 
 local function fields_to_fallback(fields)
   local t = {}

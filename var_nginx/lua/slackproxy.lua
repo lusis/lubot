@@ -1,3 +1,5 @@
+local _VERSION = "0.0.1"
+
 local slack = require 'utils.slack'
 local pu = require 'utils.plugins'
 local ngu = require 'utils.nginx'
