@@ -81,6 +81,22 @@ You can use plugins with curl fairly easily:
 }
 ```
 
+or you can use the chat interface.
+
+### Debugging
+If your plugin failed to run for whatever reason, you can always use the `plugins` plugin to get the last error generated like so:
+
+```
+<botname> plugins last_error <plugin_name>
+```
+
+Additionally inside your plugin, you can always call `plugins.log("some message")` assuming you required the `utils.plugins` module as `plugins`. Otherwise use the name you chose when including the module.
+
+When you log via `plugins.log()`, you can get to these log entries via chat:
+
+```
+<botname> plugins logs <plugin name>
+```
 
 ## Plugin tests
 Lubot plugins have optional support for testing using a mini-test suite approach. It's a tad bit verbose but as this test actually runs the plugin, it allows you to define precisely how far you want to test. Using the following tests for our sample plugin above:

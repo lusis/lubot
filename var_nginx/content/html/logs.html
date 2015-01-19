@@ -1,0 +1,13 @@
+<script src="/js/sse.js"></script>
+<div class="row">
+<div class="col-md-8"><h1>Logs</h1></div>
+<div class="col-md-4"><h1><span onclick="sseDisconnect();" id="sse_connect_status" class="glyphicon glyphicon-play pull-right"></span></h1></div>
+</div>
+<div class="row">
+<div class="col-md-12"><textarea rows="25" columns="180" disabled id="logwindow" style="width: 100%;"></textarea></div>
+</div>
+<script type="text/javascript">
+	$(document).ready(function() {
+		sseConnect();
+	});
+</script>

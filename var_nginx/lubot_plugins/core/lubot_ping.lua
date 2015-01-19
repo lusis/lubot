@@ -5,9 +5,9 @@ local p = require 'utils.plugins'
 local slack = require 'utils.slack'
 
 local function run(data)
-  local tstamp = ngx.time()
+  local tstamp = ngx.now()
 
-  local text = "pong ("..tstamp..")"
+  local text = "pong ["..tstamp.."]"
   return slack.say(text) 
 end
 

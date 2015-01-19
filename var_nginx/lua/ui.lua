@@ -7,10 +7,16 @@ local botname, err = shared_dict:get("bot_name")
 
 local function landing_page()
   local content = template.compile("<h1>"..botname.." - the openresty chatbot</h1>")
-  template.render("index.html", { ngx = ngx, botname = botname, content = content })
+  template.render("index.html", {
+    ngx = ngx,
+    botname = botname,
+    content = content,
+    menubar = menubar
+  })
 end
 
-local function plugin_page()
+local function get_page(regex)
+  local pagename = regex['path'] or '404'
   local plu = require 'utils.plugins'
   local active_plugins = plu.dicts.active:get_keys()
   local plugins = {}
@@ -22,14 +28,21 @@ local function plugin_page()
       executions = plu.dicts.executions:get(k) or 0
     }
   end
-  template.render("index.html", { ngx = ngx, botname = botname, content = template.compile("plugins.html"){active_plugins = plugins} })
+  local subcontent = template.compile(pagename..".html"){active_plugins = plugins}
+  if subcontent == pagename..".html" then
+    subcontent = template.compile('404.html')
+  end
+  template.render("index.html", {
+    menubar = menubar,
+    ngx = ngx,
+    botname = botname,
+    content = subcontent
+  })
 end
 
 local m, err = ngx.re.match(ngx.var.uri, [=[^/(?<path>\w+)(?<remainder>/.*$)?]=])
 if not m then
   return landing_page()
-elseif m["path"] == "plugins" then
-  return plugin_page()
 else
-  return landing_page()
+  return get_page(m)
 end

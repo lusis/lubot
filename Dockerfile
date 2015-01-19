@@ -116,5 +116,3 @@ EXPOSE 3232
 
 ADD ./supervisord.conf /supervisord.conf
 CMD /usr/bin/supervisord -c /supervisord.conf
-#CMD /opt/openresty/nginx/sbin/nginx -c /var/nginx/nginx.conf
-#ENTRYPOINT ["sh", "-c", "/opt/openresty/nginx/sbin/nginx", "-c", "/var/nginx/nginx.conf"]

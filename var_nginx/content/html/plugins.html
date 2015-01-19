@@ -1,12 +1,20 @@
 <h1>Plugin Status</h1>
-<label>Active plugins</label>
-<table id='active_plugins' class='display' cellspacing=0 width='75%'>
-  <thead><tr style='outline: thin solid black;'><th>name</th><th>errors</th><th>executions</th></tr></thead>
-  {% for _, v in pairs(active_plugins) do %}
-    <tr>
-      <td><b>{{v.name}}</b></td>
-      <td>{{v.errors}}</td>
-      <td>{{v.executions}}</td>
-    <tr>
-  {% end %}
+<label>Active plugins <a href="#" onclick="getPlugins(getPluginsCallback);"><span class="glyphicon glyphicon-refresh"></span></a></label>
+<table id='active_plugins' class='display' cellspacing=0 width='100%'>
+  <thead>
+  <tr style='outline: thin solid black;'>
+    <th>name</th>
+    <th>version</th>
+    <th>errors</th>
+    <th>executions</th>
+    <th>test</th>
+    <th>help</th>
+  </tr>
+  </thead>
 </table>
+<script type="text/javascript">
+	$(document).ready(function() {
+		getPlugins(getPluginsCallback);
+	});
+var intervalID = setInterval(function(){getPlugins(getPluginsCallback);}, 60000);
+</script>

@@ -81,7 +81,9 @@ function m.plugin_error(p, msg)
   if not success then
     log.warn("Unable to increment counter")
   end
-  log.err("Plugin errored with message: ", msg)
+  local perr = "Plugin '"..p.."' errored with message: "..msg
+  m.set_last_error(p, perr)
+  log.err(perr)
   ngx.status = ngx.HTTP_NOT_ALLOWED
   ngx.header.content_type = "application/json"
   ngx.say(safe_json_encode({err = true, msg = msg}))
@@ -96,6 +98,76 @@ function m.get_botname()
   else
     return botname
   end
+end
+
+function m.set_last_error(p, msg)
+  local d = m.dicts.log
+  ngx.update_time()
+  local keyname = p..":last_error"
+  local perr = {
+    tstamp = ngx.utctime(),
+    msg = msg
+  }
+  local json = safe_json_encode(perr)
+  if not json then
+    m.err("Unable to encode json before insert")
+  else
+    local success, err, forcible = d:set(keyname, json)
+    if not success then
+      log.err("Unable to write plugin log entry for '"..p.."': ", err)
+    end
+    if forcible then
+      log.warn("Keys evicted to write log message for '"..p.."'")
+    end
+  end
+end
+
+function m.get_last_error(p)
+  local plugin_log = m.dicts.log
+  local last_error = plugin_log:get(p..":last_error")
+  local resp = safe_json_decode(last_error)
+  if not resp then
+    log.err("Unable to decode last_error for "..p)
+  else
+    return resp
+  end
+end
+
+function m.get_logs(p)
+  local regex = [=[(?<plugin_name>^\w+)\:(?<tstamp>\d+.*)$]=]
+  local plugin_log = m.dicts.log
+  local entries = {}
+  local keys = plugin_log:get_keys()
+  for _, k in ipairs(keys) do
+    local match, e = ngx.re.match(k, regex, 'jo')
+    if not match then
+      log.info("Regex failed with error: ", e)
+    else
+      if match.plugin_name == p then
+        local line = plugin_log:get(k)
+        local t = {
+          timestamp = match.tstamp,
+          msg = line
+        }
+        table.insert(entries, t)
+      end
+    end
+  end
+  return entries
+end
+
+function m.plog(p, msg)
+  local d = m.dicts.log
+  ngx.update_time()
+  local keyname = p..":"..ngx.now()
+  local success, err, forcible = d:set(keyname, msg)
+  if not success then
+    log.err("Unable to write plugin log entry for '"..p.."': ", err)
+  end
+  if forcible then
+    log.warn("Keys evicted to write log message for '"..p.."'")
+  end
+  return success
 end
 
 function m.safe_incr(dict, key)

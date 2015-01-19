@@ -51,4 +51,4 @@ end
 local shared_dict = ngx.shared.ng_shared_dict
 local botname, err = shared_dict:get("bot_name")
 if not botname then botname = 'lubot' end
-template.render("index.html", { ngx = ngx, botname = botname, content = template.compile(content)})
+template.render("index.html", { menubar = menubar, ngx = ngx, botname = botname, content = template.compile(content)})

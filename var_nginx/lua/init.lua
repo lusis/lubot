@@ -2,8 +2,12 @@ local _VERSION = "0.0.1"
 -- These variables are all local to this file
 local lubot_plugin_config = os.getenv("LUBOT_PLUGIN_CONFIG") or "/var/nginx/lubot_plugins/plugins.json"
 local botname = os.getenv("LUBOT_BOTNAME") or "lubot"
-local slack_token = os.getenv("SLACK_API_TOKEN")
+local slack_token = os.getenv("SLACK_API_TOKEN") or nil
 local slack_webhook_url = os.getenv("SLACK_WEBHOOK_URL")
+-- default brain is a shared dictionary
+local lubot_brain = os.getenv("LUBOT_BRAIN") or "ngx_shared"
+local lubot_brain_opts = os.getenv("LUBOT_BRAIN_OPTS")
+
 local shared_dict = ngx.shared.ng_shared_dict
 local lubot_config = ngx.shared.lubot_config
 lubot_config:set("config_file", lubot_plugin_config)
@@ -18,6 +22,28 @@ local slack = require 'utils.slack'
 local log = require 'utils.log'
 
 local inspect = require 'inspect'
+
+menubar = {
+  ["Slack"] = "/slack",
+  ["Plugins"] = "/plugins",
+  ["Logs"] = "/logs",
+  ["Docs"] = "/docs/index"
+}
+
+robot = {}
+
+if lubot_brain == 'memory' then
+  print("Memory brain is invalid for nginx. Switching to ngx_shared")
+  lubot_brain = 'ngx_shared'
+end
+local brain_ok, brain  = pcall(require, 'utils.brain')
+if not brain_ok then
+  print("Failed to load brain. This won't work....")
+else
+  robot.brain = brain.new(lubot_brain, lubot_brain_opts)
+  robot.brain:set('botname', botname)
+  robot.brain:set('config_file', lubot_plugin_config)
+end
 
 function safe_json_decode(str)
   if not str then
@@ -63,6 +89,7 @@ function slackbot(premature)
     local slack_bots      = ngx.shared.slack_bots
     
     log.alert("Filling shared dict with initial details")
+
     for k, v in pairs(data.users) do
       local str = safe_json_encode(v)
       if not str then break end
@@ -71,6 +98,11 @@ function slackbot(premature)
         log.err("Unable to add user to shared_dict: ", e)
         errors.insert(v)
       end
+      local bo  = robot.brain:safe_set(v.id, v)
+      if not bo then
+        log.err("failed to add data to brain")
+      end
+      robot.brain:save()
     end
     for k, v in pairs(data.groups) do
       local str = safe_json_encode(v)
@@ -80,6 +112,11 @@ function slackbot(premature)
         log.err("Unable to add group to shared_dict: ", e)
         errors.insert(v)
       end
+      local bo  = robot.brain:safe_set(v.id, v)
+      if not bo then
+        log.err("failed to add data to brain")
+      end
+      robot.brain:save()
     end
     for k, v in pairs(data.channels) do
       local str = safe_json_encode(v)
@@ -89,6 +126,11 @@ function slackbot(premature)
         log.err("Unable to add channel to shared_dict: ", e)
         errors.insert(v)
       end
+      local bo  = robot.brain:safe_set(v.id, v)
+      if not bo then
+        log.err("failed to add data to brain")
+      end
+      robot.brain:save()
     end
     for k, v in pairs(data.bots) do
       local str = safe_json_encode(v)
@@ -98,6 +140,11 @@ function slackbot(premature)
         log.err("Unable to add bots to shared_dict: ", e)
         errors.insert(v)
       end
+      local bo  = robot.brain:safe_set(v.id, v)
+      if not bo then
+        log.err("failed to add data to brain")
+      end
+      robot.brain:save()
     end
     for k, v in pairs(data.ims) do
       local str = safe_json_encode(v)
@@ -107,6 +154,11 @@ function slackbot(premature)
         log.err("Unable to add ims to shared_dict: ", e)
         errors.insert(v)
       end
+      local bo  = robot.brain:safe_set(v.id, v)
+      if not bo then
+        log.err("failed to add data to brain")
+      end
+      robot.brain:save()
     end
     log.alert("Filled shared dict")
     if #errors > 0 then
@@ -117,6 +169,9 @@ function slackbot(premature)
   end
 
   local function wait(url)
+    if not robot.brain then
+      return false
+    end
     local plugin_config = pu.load_config()
     local slack_webhook_url = shared_dict:get('slack_webhook_url')
     if not slack_webhook_url then log.alert("No webhook url. Some plugins may not work") end
@@ -154,7 +209,6 @@ function slackbot(premature)
     if not pok then
       log.err("Failed to schedule filling of shared dicts with slack data: ", inspect(perr))
     end
-
     local rewrite_url_t = hc:urlparse(data.url)
     -- proxy_pass doesn't understand ws[s] urls so we fake it
     local rewrite_url = "https://"..rewrite_url_t.host..rewrite_url_t.path
